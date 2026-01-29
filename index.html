@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NextGen Todo - 侧边布局专业版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { DEFAULT: '#3b82f6', dark: '#2563eb' }
+                    },
+                    animation: {
+                        'slide-in': 'slideIn 0.3s ease-out forwards',
+                        'shake': 'shake 0.4s ease-in-out'
+                    },
+                    keyframes: {
+                        slideIn: { '0%': { transform: 'translateX(-10px)', opacity: '0' }, '100%': { transform: 'translateX(0)', opacity: '1' } },
+                        shake: { '0%, 100%': { transform: 'translateX(0)' }, '25%': { transform: 'translateX(-5px)' }, '75%': { transform: 'translateX(5px)' } }
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer components {
+            .sidebar-item { @apply flex items-center px-4 py-3 rounded-xl cursor-pointer transition-all duration-200 text-sm font-medium; }
+            .sidebar-item.active { @apply bg-primary text-white shadow-md shadow-primary/30; }
+            .sidebar-item:not(.active) { @apply text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800; }
+            .glass-panel { @apply bg-white/70 dark:bg-gray-800/70 backdrop-blur-md border border-gray-200/50 dark:border-gray-700/50; }
+            
+            /* 新增：美化后的下拉框 */
+            .custom-select {
+                @apply appearance-none bg-gray-100 dark:bg-gray-700/50 
+                       px-3 py-1.5 pr-8 rounded-lg text-xs font-medium 
+                       text-gray-600 dark:text-gray-300
+                       cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 
+                       transition-all outline-none border-none;
+                /* 自定义箭头图标 */
+                background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+                background-position: right 0.5rem center;
+                background-repeat: no-repeat;
+                background-size: 1.2em 1.2em;
+            }
+            
+            /* 更加精致的输入项容器 */
+            .input-group-item {
+                @apply flex items-center gap-2 px-3 py-1.5 
+                       bg-gray-50/50 dark:bg-gray-700/30 
+                       border border-gray-100 dark:border-gray-600/50 
+                       rounded-xl transition-all duration-200 
+                       hover:bg-white dark:hover:bg-gray-700;
+            }
+            
+            /* 针对日期插件的特殊处理 */
+            #task-due-date {
+                @apply bg-transparent font-medium text-xs text-gray-600 dark:text-gray-300 
+                       cursor-pointer focus:outline-none w-full;
+            }
+            .input-group-item:has(#task-due-date) {
+                @apply cursor-pointer;
+            }
+
+            /* 增强 Checkbox 的外观 */
+            .custom-checkbox {
+                @apply w-4 h-4 rounded-md border-gray-300 dark:border-gray-600 
+                       text-primary focus:ring-offset-0 focus:ring-primary/20 
+                       transition-all cursor-pointer;
+            }
+            
+            /* 每日任务切换按钮 */
+            .daily-toggle {
+                @apply w-4 h-4 rounded-md border border-gray-300 dark:border-gray-600 
+                       flex items-center justify-center transition-all cursor-pointer;
+            }
+            .daily-toggle.active {
+                @apply bg-green-500 border-green-500;
+            }
+            .daily-toggle.active i {
+                color: white !important;
+            }
+            .group:has(.daily-toggle.active):hover .daily-toggle i {
+                color: white !important;
+            }
+            .label:has(.daily-toggle.active):hover .daily-toggle i {
+                color: white !important;
+            }
+            .input-group-item:has(.daily-toggle.active):hover .daily-toggle i {
+                color: white !important;
+            }
+            .daily-toggle.active:hover i {
+                color: white !important;
+            }
+            .daily-toggle.active + span {
+                color: #10b981 !important;
+            }
+            .group:has(.daily-toggle.active):hover .daily-toggle + span {
+                color: #10b981 !important;
+            }
+            .input-group-item:has(.daily-toggle.active):hover .daily-toggle + span {
+                color: #10b981 !important;
+            }
+            .daily-toggle.active:hover + span {
+                color: #10b981 !important;
+            }
+            .input-group-item:has(.daily-toggle.active) {
+                @apply border-green-500/50;
+            }
+            
+            /* 自定义滚动条样式 - 默认隐藏 */
+            .custom-scrollbar::-webkit-scrollbar {
+                width: 2px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+                background-color: transparent;
+                border-radius: 3px;
+                transition: all 0.3s ease;
+            }
+            .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+                background-color: #d1d5db;
+            }
+            .custom-scrollbar:hover::-webkit-scrollbar {
+                width: 4px;
+            }
+            .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+                background-color: transparent;
+            }
+            .dark .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+                background-color: #4b5563;
+            }
+            
+            /* 日期选择器下拉框滚动条 - 完全隐藏 */
+            #year-dropdown::-webkit-scrollbar,
+            #month-dropdown::-webkit-scrollbar {
+                display: none;
+            }
+            #year-dropdown,
+            #month-dropdown {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+            
+            /* 子分类展开折叠动画 */
+            .subcategories {
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+                opacity: 0;
+            }
+            .subcategories.expanded {
+                max-height: 100px;
+                opacity: 1;
+            }
+        }
+
+        /* 跟随系统的配色方案 */
+        :root { color-scheme: light; }
+        :root.dark { color-scheme: dark; }
+
+        /* 日期选择器样式 */
+        #date-picker {
+            @apply animate-slide-in;
+        }
+        
+        #calendar-grid .date-cell {
+            @apply w-8 h-8 flex items-center justify-center rounded-lg text-xs font-medium transition-all cursor-pointer;
+        }
+        
+        #calendar-grid .date-cell:hover:not(.empty):not(.disabled) {
+            @apply bg-gray-100 dark:bg-gray-700;
+        }
+        
+        #calendar-grid .date-cell.empty {
+            @apply opacity-0 cursor-default;
+        }
+        
+        #calendar-grid .date-cell.today {
+            @apply bg-primary/10 text-primary font-semibold;
+        }
+        
+        #calendar-grid .date-cell.selected {
+            @apply bg-primary text-white;
+        }
+        
+        #calendar-grid .date-cell.disabled {
+            @apply text-gray-300 dark:text-gray-600 cursor-not-allowed;
+        }
+        
+        #month-select,
+        #year-select {
+            @apply text-xs font-medium bg-transparent outline-none cursor-pointer text-gray-600 dark:text-gray-300;
+        }
+        
+        #month-select option,
+        #year-select option {
+            @apply bg-white dark:bg-gray-800;
+        }
+        
+        /* 日期选择器动画 */
+        @keyframes slideIn {
+            from {
+                transform: translateY(-10px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .animate-slide-in {
+            animation: slideIn 0.2s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen text-gray-800 dark:text-gray-200">
+
+    <button id="theme-toggle" class="fixed top-6 right-6 z-50 w-11 h-11 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full shadow-lg flex items-center justify-center text-gray-600 dark:text-gray-300 hover:scale-110 active:scale-95 transition-all">
+        <i class="fa fa-moon-o dark:hidden text-lg"></i>
+        <i class="fa fa-sun-o hidden dark:block text-lg"></i>
+    </button>
+
+    <div class="flex flex-col lg:flex-row min-h-screen">
+        <aside class="lg:w-72 w-full glass-panel lg:fixed lg:h-full z-20 flex flex-col p-6 shadow-xl lg:shadow-none">
+            <div class="flex items-center space-x-3 mb-6">
+                <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/20">
+                    <i class="fa fa-check-square text-xl"></i>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight">Todo Master</h1>
+            </div>
+
+            <nav class="space-y-2">
+                <p class="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-4 px-2">视图分类</p>
+                <div data-filter="all" class="sidebar-item filter-btn active">
+                    <i class="fa fa-th-large mr-3"></i> 全部任务
+                </div>
+                <div data-filter="active" class="sidebar-item filter-btn">
+                    <i class="fa fa-clock-o mr-3"></i> 进行中
+                </div>
+                <div data-filter="completed" class="sidebar-item filter-btn">
+                    <i class="fa fa-check-circle-o mr-3"></i> 已完成
+                </div>
+            </nav>
+
+            <div class="flex-1 flex flex-col min-h-0 mt-6">
+                <div class="flex justify-between items-center mb-4 px-2">
+                    <p class="text-[10px] uppercase tracking-widest text-gray-400 font-bold">自定义分类</p>
+                    <button id="add-category" class="text-xs text-primary hover:text-primary/80 transition-colors">
+                        <i class="fa fa-plus-circle"></i>
+                    </button>
+                </div>
+                <div id="category-form" class="hidden mb-4 px-2">
+                    <div class="flex gap-2">
+                        <input type="text" id="category-name" placeholder="输入分类名称" class="flex-1 text-xs px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary transition-all">
+                        <button id="save-category" class="text-xs px-3 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all">
+                            <i class="fa fa-check"></i>
+                        </button>
+                        <button id="cancel-category" class="text-xs px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="custom-categories" class="flex-1 overflow-y-auto pr-4 custom-scrollbar space-y-2">
+                </div>
+            </div>
+
+            <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 space-y-4">
+                <div class="flex justify-between items-center px-2">
+                    <span class="text-xs text-gray-400">任务进度</span>
+                    <span id="progress-text" class="text-xs font-bold text-primary">0/0</span>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                    <div id="progress-bar" class="bg-primary h-full transition-all" style="width: 0%"></div>
+                </div>
+                <button id="clear-completed" class="w-full text-[10px] py-2 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-1">
+                    <i class="fa fa-trash-o"></i> 清空已完成
+                </button>
+                <div class="flex gap-2">
+                    <button id="export-tasks" class="flex-1 text-[10px] py-2 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 transition-colors">导出</button>
+                    <button id="import-tasks" class="flex-1 text-[10px] py-2 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 transition-colors">导入</button>
+                    <button id="backup-tasks" class="flex-1 text-[10px] py-2 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 transition-colors">备份</button>
+                    <input type="file" id="import-file" class="hidden">
+                </div>
+            </div>
+        </aside>
+
+        <main class="flex-1 lg:ml-72 p-6 lg:p-12 transition-all duration-300">
+            <header class="max-w-4xl mx-auto mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-3xl font-bold" id="view-title">全部任务</h2>
+                    <p class="text-gray-400 text-sm mt-1" id="current-date"></p>
+                </div>
+                <div class="relative w-full md:w-64">
+                    <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" id="search-input" placeholder="搜索任务..." 
+                           class="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm transition-all">
+                    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500">Ctrl+F</span>
+                </div>
+            </header>
+
+            <div class="max-w-4xl mx-auto mb-10">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div class="flex items-center px-5 py-4">
+                        <div class="relative flex-1">
+                            <input type="text" id="task-input" placeholder="准备做什么？" class="w-full bg-transparent outline-none text-base font-medium">
+                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500">Enter</span>
+                        </div>
+                        <button id="add-task" class="w-10 h-10 bg-primary text-white rounded-xl flex items-center justify-center hover:scale-105 active:scale-95 shadow-lg shadow-primary/20 transition-all ml-1">
+                            <i class="fa fa-plus"></i>
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-3 px-5 pb-4 border-t border-gray-100 dark:border-gray-700 pt-3">
+                        <div class="input-group-item group w-[110px] cursor-pointer relative" id="priority-dropdown">
+                            <i class="fa fa-flag-o text-gray-400 group-hover:text-primary transition-colors text-xs"></i>
+                            <div class="priority-selected text-xs font-semibold text-gray-600 dark:text-gray-300">中优先级</div>
+                            <i class="fa fa-chevron-down text-xs text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                            <input type="hidden" id="task-priority" value="medium">
+                        </div>
+
+                        <div class="input-group-item group w-[120px] cursor-pointer relative" id="date-picker-container">
+                            <i class="fa fa-calendar-o text-gray-400 group-hover:text-primary transition-colors text-xs mr-2"></i>
+                            <input type="text" id="task-due-date" placeholder="选择日期" class="bg-transparent font-medium text-xs text-gray-600 dark:text-gray-300 cursor-pointer focus:outline-none w-full" readonly>
+                            <input type="hidden" id="task-due-date-value">
+                        </div>
+
+                        <label class="input-group-item group cursor-pointer hover:border-green-500/50 w-[120px]">
+                            <div class="daily-toggle" id="task-daily">
+                                <i class="fa fa-lightbulb-o text-xs text-gray-400 group-hover:text-green-500 transition-colors"></i>
+                            </div>
+                            <span class="text-xs font-medium text-gray-500 dark:text-gray-400 group-hover:text-green-500 transition-colors">每日任务</span>
+                        </label>
+                    </div>
+                </div>
+                <input type="text" id="task-tag" placeholder="标签 (用逗号分隔)" class="mt-3 px-5 py-2 text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 outline-none w-full focus:ring-2 focus:ring-primary transition-all">
+            </div>
+
+            <div class="max-w-4xl mx-auto">
+                <div class="flex justify-between items-center mb-4 px-2">
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">任务列表</p>
+                    <div class="flex items-center gap-2">
+                        <button class="sort-btn text-xs font-bold text-gray-500 hover:text-primary transition-colors" data-sort="created">
+                            创建时间
+                            <span class="sort-order ml-1 text-[10px]">↓</span>
+                        </button>
+                        <button class="sort-btn text-xs font-bold text-gray-500 hover:text-primary transition-colors" data-sort="name">
+                            按名字排序
+                            <span class="sort-order ml-1 text-[10px]">↓</span>
+                        </button>
+                        <button class="sort-btn text-xs font-bold text-gray-500 hover:text-primary transition-colors" data-sort="priority">
+                            优先级
+                            <span class="sort-order ml-1 text-[10px]">↓</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="task-list" class="grid grid-cols-1 gap-3"></div>
+                <div id="empty-state" class="hidden py-24 text-center animate-fade-in">
+                    <i class="fa fa-coffee text-4xl text-gray-200 mb-4 block"></i>
+                    <p class="text-gray-400">空空如也，添加点什么吧</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2"></div>
+    
+    <div id="confirm-dialog" class="fixed inset-0 bg-black/50 flex items-center z-50 hidden">
+        <div class="ml-72 md:ml-80 flex-1 max-w-md px-4">
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-xl">
+                <h3 class="text-lg font-bold mb-2">确认删除</h3>
+                <p class="text-gray-600 dark:text-gray-300 mb-4">确定要删除这个分类吗？删除后，该分类下的所有任务也会被删除，不可恢复。</p>
+                <div class="flex justify-end gap-2">
+                    <button id="confirm-cancel" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
+                    <button id="confirm-delete" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 日期选择器 - 放置在页面根级别避免遮挡 -->
+    <div id="date-picker" class="hidden absolute top-0 left-0 glass-panel rounded-xl shadow-xl z-50 w-64 p-3 opacity-0 transform scale-95 transition-all duration-200">
+        <div class="flex items-center justify-between mb-3">
+            <button id="prev-month" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <i class="fa fa-chevron-left text-xs"></i>
+            </button>
+            <div class="flex items-center gap-4">
+                <div class="year-picker-container relative cursor-pointer w-[80px]">
+                    <div id="year-select" class="text-xs font-medium bg-transparent outline-none cursor-pointer flex items-center gap-1 justify-center">
+                        <span id="year-display">2026年</span>
+                        <i class="fa fa-chevron-down text-[10px]"></i>
+                    </div>
+                    <div id="year-dropdown" class="hidden absolute top-full left-0 mt-1 glass-panel rounded-xl shadow-xl z-50 w-full p-1 opacity-0 transform scale-95 transition-all duration-200 max-h-[250px] overflow-y-auto">
+                        <!-- 年份选项将通过JS动态生成 -->
+                    </div>
+                </div>
+                <div class="month-picker-container relative cursor-pointer w-[60px]">
+                    <div id="month-select" class="text-xs font-medium bg-transparent outline-none cursor-pointer flex items-center gap-1 justify-center">
+                        <span id="month-display">1月</span>
+                        <i class="fa fa-chevron-down text-[10px]"></i>
+                    </div>
+                    <div id="month-dropdown" class="hidden absolute top-full left-0 mt-1 glass-panel rounded-xl shadow-xl z-50 w-full p-1 opacity-0 transform scale-95 transition-all duration-200 max-h-[200px] overflow-y-auto">
+                        <div class="month-option px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg cursor-pointer transition-all" data-value="0">1月</div>
+                        <div class="month-option px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg cursor-pointer transition-all" data-value="1">2月</div>
+                        <div class="month-option px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg cursor-pointer transition-all" data-value="2">3月</div>
+                        <div class="month-option px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg cursor-pointer transition-all" data-value="3">4月</div>
+                        <div class="month-option px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg cursor-pointer transition-all" data-value="4">5月</div>
+                        <div class="month-option px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg cursor-pointer transition-all" data-value="5">6月</div>
+                        <div class="month-option px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg cursor-pointer transition-all" data-value="6">7月</div>
+                        <div class="month-option px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg cursor-pointer transition-all" data-value="7">8月</div>
+                        <div class="month-option px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg cursor-pointer transition-all" data-value="8">9月</div>
+                        <div class="month-option px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg cursor-pointer transition-all" data-value="9">10月</div>
+                        <div class="month-option px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg cursor-pointer transition-all" data-value="10">11月</div>
+                        <div class="month-option px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg cursor-pointer transition-all" data-value="11">12月</div>
+                    </div>
+                </div>
+            </div>
+            <button id="next-month" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <i class="fa fa-chevron-right text-xs"></i>
+            </button>
+        </div>
+        <div class="grid grid-cols-7 gap-1 mb-2">
+            <div class="text-center text-[10px] font-semibold text-gray-400 py-1">日</div>
+            <div class="text-center text-[10px] font-semibold text-gray-400 py-1">一</div>
+            <div class="text-center text-[10px] font-semibold text-gray-400 py-1">二</div>
+            <div class="text-center text-[10px] font-semibold text-gray-400 py-1">三</div>
+            <div class="text-center text-[10px] font-semibold text-gray-400 py-1">四</div>
+            <div class="text-center text-[10px] font-semibold text-gray-400 py-1">五</div>
+            <div class="text-center text-[10px] font-semibold text-gray-400 py-1">六</div>
+        </div>
+        <div id="calendar-grid" class="grid grid-cols-7 gap-1">
+        </div>
+        <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+            <button id="today-btn" class="text-xs text-primary hover:text-primary/80 transition-colors">今天</button>
+            <button id="clear-date" class="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">清除</button>
+        </div>
+    </div>
+    
+    <!-- 优先级选择器 - 放置在页面根级别避免遮挡 -->
+    <div id="priority-picker" class="hidden absolute top-0 left-0 glass-panel rounded-xl shadow-xl z-50 w-[110px] p-1 opacity-0 transform scale-95 transition-all duration-200">
+        <div class="priority-option px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg cursor-pointer transition-all" data-value="medium">中优先级</div>
+        <div class="priority-option px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg cursor-pointer transition-all" data-value="high">高优先级</div>
+        <div class="priority-option px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg cursor-pointer transition-all" data-value="low">低优先级</div>
+    </div>
+    
+    <script>
+        // 优先级选择器功能
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropdown = document.getElementById('priority-dropdown');
+            const selected = dropdown.querySelector('.priority-selected');
+            const picker = document.getElementById('priority-picker');
+            const hiddenInput = document.getElementById('task-priority');
+            
+            // 点击下拉框切换选项显示/隐藏
+            dropdown.addEventListener('click', function(e) {
+                e.stopPropagation();
+                
+                // 先关闭日期选择器的下拉框
+                const monthDropdown = document.getElementById('month-dropdown');
+                const yearDropdown = document.getElementById('year-dropdown');
+                
+                // 立即关闭下拉框，不使用动画，确保状态正确
+                monthDropdown.classList.add('hidden');
+                yearDropdown.classList.add('hidden');
+                monthDropdown.style.opacity = '0';
+                yearDropdown.style.opacity = '0';
+                monthDropdown.style.transform = 'scale(0.95)';
+                yearDropdown.style.transform = 'scale(0.95)';
+                
+                // 同时关闭日期选择器容器
+                const datePicker = document.getElementById('date-picker');
+                if (!datePicker.classList.contains('hidden')) {
+                    datePicker.style.opacity = '0';
+                    datePicker.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        datePicker.classList.add('hidden');
+                    }, 200);
+                }
+                
+                // 计算优先级选择器的位置
+                const rect = dropdown.getBoundingClientRect();
+                const pickerWidth = 110; // 固定宽度，与CSS中设置的一致
+                picker.style.top = `${rect.bottom + window.scrollY + 8}px`;
+                picker.style.left = `${rect.left + window.scrollX + rect.width / 2 - pickerWidth / 2}px`;
+                
+                if (picker.classList.contains('hidden')) {
+                    // 显示下拉框并添加动画
+                    picker.classList.remove('hidden');
+                    // 强制重排以触发动画
+                    picker.offsetHeight;
+                    picker.style.opacity = '1';
+                    picker.style.transform = 'scale(1)';
+                } else {
+                    // 直接关闭下拉框，不使用动画，确保没有延迟
+                    picker.classList.add('hidden');
+                    picker.style.opacity = '0';
+                    picker.style.transform = 'scale(0.95)';
+                }
+            });
+            
+            // 点击选项进行选择
+            picker.querySelectorAll('.priority-option').forEach(option => {
+                option.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const value = this.dataset.value;
+                    const text = this.textContent;
+                    selected.textContent = text;
+                    hiddenInput.value = value;
+                    // 直接关闭下拉框，不使用动画，确保没有延迟
+                    picker.classList.add('hidden');
+                    picker.style.opacity = '0';
+                    picker.style.transform = 'scale(0.95)';
+                });
+            });
+            
+            // 点击页面其他地方关闭下拉框
+            document.addEventListener('click', function() {
+                if (!picker.classList.contains('hidden')) {
+                    // 直接关闭下拉框，不使用动画，确保没有延迟
+                    picker.classList.add('hidden');
+                    picker.style.opacity = '0';
+                    picker.style.transform = 'scale(0.95)';
+                }
+                
+                // 同时关闭日期选择器的下拉框
+                document.getElementById('month-dropdown').classList.add('hidden');
+                document.getElementById('year-dropdown').classList.add('hidden');
+                document.getElementById('month-dropdown').style.opacity = '0';
+                document.getElementById('year-dropdown').style.opacity = '0';
+                document.getElementById('month-dropdown').style.transform = 'scale(0.95)';
+                document.getElementById('year-dropdown').style.transform = 'scale(0.95)';
+            });
+            
+            // 阻止点击选择器内部时关闭
+            picker.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+            
+            // 阻止点击下拉框选项时关闭
+            picker.querySelectorAll('.priority-option').forEach(option => {
+                option.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+            });
+        });
+    </script>
+
+    <script type="module" src="script.js?v=2"></script>
+    <script>
+        // 每日任务切换功能
+        document.addEventListener('DOMContentLoaded', function() {
+            const dailyToggle = document.getElementById('task-daily');
+            const dailyLabel = dailyToggle.closest('label');
+            
+            // 每日任务切换
+            dailyLabel.addEventListener('click', function(e) {
+                e.preventDefault();
+                dailyToggle.classList.toggle('active');
+            });
+        });
+        
+        // --- 重写的日期选择器逻辑 ---
+        document.addEventListener('DOMContentLoaded', function() {
+            const dateInput = document.getElementById('task-due-date');
+            const dateValueInput = document.getElementById('task-due-date-value');
+            const datePicker = document.getElementById('date-picker');
+            const datePickerContainer = document.getElementById('date-picker-container');
+            const prevMonthBtn = document.getElementById('prev-month');
+            const nextMonthBtn = document.getElementById('next-month');
+            const monthSelect = document.getElementById('month-select');
+            const yearSelect = document.getElementById('year-select');
+            const calendarGrid = document.getElementById('calendar-grid');
+            const todayBtn = document.getElementById('today-btn');
+            const clearDateBtn = document.getElementById('clear-date');
+
+            // 内部状态
+            let viewDate = new Date(); // 当前面板显示的月份
+            let selectedDate = null;   // 用户选中的日期
+
+            // 1. 初始化年份下拉菜单 (前后10年)
+            const initYearSelect = () => {
+                const currentYear = new Date().getFullYear();
+                const yearDropdown = document.getElementById('year-dropdown');
+                yearDropdown.innerHTML = '';
+                for (let i = currentYear - 5; i <= currentYear + 15; i++) {
+                    const option = document.createElement('div');
+                    option.className = 'year-option px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 rounded-lg cursor-pointer transition-all';
+                    option.dataset.value = i;
+                    option.textContent = `${i}年`;
+                    yearDropdown.appendChild(option);
+                }
+                
+                // 为年份选项添加事件监听
+                document.querySelectorAll('.year-option').forEach(option => {
+                    option.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const value = parseInt(option.dataset.value);
+                        viewDate.setDate(1); // 设置为1号，避免月份溢出问题
+                        viewDate.setFullYear(value);
+                        renderCalendar();
+                        // 关闭下拉框
+                        document.getElementById('year-dropdown').classList.add('hidden');
+                        document.getElementById('year-dropdown').style.opacity = '0';
+                        document.getElementById('year-dropdown').style.transform = 'scale(0.95)';
+                    });
+                });
+            };
+
+            // 2. 渲染日历核心逻辑
+            const renderCalendar = () => {
+                const year = viewDate.getFullYear();
+                const month = viewDate.getMonth();
+                
+                // 更新下拉框状态
+                document.getElementById('year-display').textContent = `${year}年`;
+                document.getElementById('month-display').textContent = `${month + 1}月`;
+
+                calendarGrid.innerHTML = '';
+
+                // 计算日历第一天（当前月第一天所在的周日）
+                const firstDayOfMonth = new Date(year, month, 1);
+                const startDay = new Date(firstDayOfMonth);
+                startDay.setDate(1 - firstDayOfMonth.getDay());
+
+                // 渲染 6 周（42天）保证高度固定，不抖动
+                for (let i = 0; i < 42; i++) {
+                    const date = new Date(startDay);
+                    date.setDate(startDay.getDate() + i);
+
+                    const cell = document.createElement('div');
+                    cell.className = 'date-cell';
+                    cell.textContent = date.getDate();
+
+                    const isCurrentMonth = date.getMonth() === month;
+                    const isToday = date.toDateString() === new Date().toDateString();
+                    const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
+                    const isPast = new Date(date.setHours(0,0,0,0)) < new Date().setHours(0,0,0,0);
+
+                    // 样式处理
+                    if (!isCurrentMonth) cell.classList.add('empty');
+                    if (isToday) cell.classList.add('today');
+                    if (isSelected) cell.classList.add('selected');
+                    if (isPast && isCurrentMonth) cell.classList.add('disabled');
+
+                    // 点击事件
+                    if (isCurrentMonth && !isPast) {
+                        cell.onclick = () => {
+                            selectedDate = new Date(date);
+                            updateInput();
+                            closePicker();
+                        };
+                    }
+
+                    calendarGrid.appendChild(cell);
+                }
+            };
+
+            // 3. 更新输入框显示
+            const updateInput = () => {
+                if (selectedDate) {
+                    const y = selectedDate.getFullYear();
+                    const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                    const d = String(selectedDate.getDate()).padStart(2, '0');
+                    dateInput.value = `${m}月${d}日`;
+                    dateValueInput.value = `${y}-${m}-${d}`;
+                } else {
+                    dateInput.value = '';
+                    dateValueInput.value = '';
+                }
+            };
+
+            // 4. 显示/隐藏逻辑
+            const openPicker = () => {
+                const rect = datePickerContainer.getBoundingClientRect();
+                datePicker.style.top = `${rect.bottom + window.scrollY + 8}px`;
+                datePicker.style.left = `${rect.left + window.scrollX}px`;
+                
+                datePicker.classList.remove('hidden');
+                setTimeout(() => {
+                    datePicker.style.opacity = '1';
+                    datePicker.style.transform = 'scale(1)';
+                }, 10);
+                renderCalendar();
+            };
+
+            const closePicker = () => {
+                datePicker.classList.add('hidden');
+                datePicker.style.opacity = '0';
+                datePicker.style.transform = 'scale(0.95)';
+            };
+
+            // 5. 月份和年份选择器逻辑
+            const toggleDropdown = (dropdownId) => {
+                // 先关闭所有下拉框
+                document.getElementById('month-dropdown').classList.add('hidden');
+                document.getElementById('year-dropdown').classList.add('hidden');
+                document.getElementById('month-dropdown').style.opacity = '0';
+                document.getElementById('year-dropdown').style.opacity = '0';
+                document.getElementById('month-dropdown').style.transform = 'scale(0.95)';
+                document.getElementById('year-dropdown').style.transform = 'scale(0.95)';
+                
+                // 打开目标下拉框
+                const dropdown = document.getElementById(dropdownId);
+                dropdown.classList.remove('hidden');
+                setTimeout(() => {
+                    dropdown.style.opacity = '1';
+                    dropdown.style.transform = 'scale(1)';
+                }, 10);
+            };
+
+            // --- 事件监听 ---
+
+            datePickerContainer.addEventListener('click', (e) => {
+                e.stopPropagation();
+                
+                // 先关闭优先级选择器的下拉框
+                const priorityPicker = document.getElementById('priority-picker');
+                if (!priorityPicker.classList.contains('hidden')) {
+                    // 立即关闭下拉框，不使用动画，确保状态正确
+                    priorityPicker.classList.add('hidden');
+                    priorityPicker.style.opacity = '0';
+                    priorityPicker.style.transform = 'scale(0.95)';
+                }
+                
+                datePicker.classList.contains('hidden') ? openPicker() : closePicker();
+            });
+
+            prevMonthBtn.onclick = (e) => {
+                e.stopPropagation();
+                viewDate.setDate(1); // 设置为1号，避免月份溢出问题
+                viewDate.setMonth(viewDate.getMonth() - 1);
+                renderCalendar();
+            };
+
+            nextMonthBtn.onclick = (e) => {
+                e.stopPropagation();
+                viewDate.setDate(1); // 设置为1号，避免月份溢出问题
+                viewDate.setMonth(viewDate.getMonth() + 1);
+                renderCalendar();
+            };
+
+            // 月份选择器点击
+            document.getElementById('month-select').addEventListener('click', (e) => {
+                e.stopPropagation();
+                // 先关闭优先级选择器的下拉框
+                const priorityPicker = document.getElementById('priority-picker');
+                if (!priorityPicker.classList.contains('hidden')) {
+                    // 立即关闭下拉框，不使用动画，确保状态正确
+                    priorityPicker.classList.add('hidden');
+                    priorityPicker.style.opacity = '0';
+                    priorityPicker.style.transform = 'scale(0.95)';
+                }
+                toggleDropdown('month-dropdown');
+            });
+
+            // 年份选择器点击
+            document.getElementById('year-select').addEventListener('click', (e) => {
+                e.stopPropagation();
+                // 先关闭优先级选择器的下拉框
+                const priorityPicker = document.getElementById('priority-picker');
+                if (!priorityPicker.classList.contains('hidden')) {
+                    // 立即关闭下拉框，不使用动画，确保状态正确
+                    priorityPicker.classList.add('hidden');
+                    priorityPicker.style.opacity = '0';
+                    priorityPicker.style.transform = 'scale(0.95)';
+                }
+                toggleDropdown('year-dropdown');
+            });
+
+            // 月份选项点击
+            document.querySelectorAll('.month-option').forEach(option => {
+                option.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const value = parseInt(option.dataset.value);
+                    viewDate.setDate(1); // 设置为1号，避免月份溢出问题
+                    viewDate.setMonth(value);
+                    renderCalendar();
+                    // 关闭下拉框
+                    document.getElementById('month-dropdown').classList.add('hidden');
+                    document.getElementById('month-dropdown').style.opacity = '0';
+                    document.getElementById('month-dropdown').style.transform = 'scale(0.95)';
+                });
+            });
+
+            // 年份选项点击（动态生成的选项会在后面添加事件监听）
+
+            // 点击页面其他地方关闭下拉框
+            document.addEventListener('click', () => {
+                document.getElementById('month-dropdown').classList.add('hidden');
+                document.getElementById('year-dropdown').classList.add('hidden');
+                document.getElementById('month-dropdown').style.opacity = '0';
+                document.getElementById('year-dropdown').style.opacity = '0';
+                document.getElementById('month-dropdown').style.transform = 'scale(0.95)';
+                document.getElementById('year-dropdown').style.transform = 'scale(0.95)';
+                
+                // 同时关闭优先级选择器的下拉框
+                const priorityPicker = document.getElementById('priority-picker');
+                if (!priorityPicker.classList.contains('hidden')) {
+                    // 直接关闭下拉框，不使用动画，确保没有延迟
+                    priorityPicker.classList.add('hidden');
+                    priorityPicker.style.opacity = '0';
+                    priorityPicker.style.transform = 'scale(0.95)';
+                }
+            });
+
+            // 阻止点击下拉框内部时关闭
+            document.getElementById('month-dropdown').addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
+            document.getElementById('year-dropdown').addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
+            todayBtn.onclick = () => {
+                selectedDate = new Date();
+                viewDate = new Date();
+                updateInput();
+                closePicker();
+            };
+
+            clearDateBtn.onclick = () => {
+                selectedDate = null;
+                updateInput();
+                closePicker();
+            };
+
+            // 点击页面其他位置关闭
+            document.addEventListener('click', (e) => {
+                if (!datePicker.contains(e.target) && !datePickerContainer.contains(e.target)) {
+                    closePicker();
+                }
+            });
+
+            // 初始化运行
+            initYearSelect();
+        });
+    </script>
+    
+    <!-- 备份配置对话框 - 放置在页面根级别避免遮挡 -->
+    <div id="backup-dialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="max-w-md w-full px-4">
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-xl">
+                <h3 class="text-lg font-bold mb-4">备份配置</h3>
+                
+                <div class="space-y-6">
+                    <!-- GitHub 备份配置 -->
+                    <div>
+                        <h4 class="text-sm font-semibold mb-3 flex items-center gap-2">
+                            <i class="fa fa-github text-gray-600 dark:text-gray-300"></i>
+                            GitHub 备份
+                        </h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">GitHub Personal Access Token</label>
+                                <input type="password" id="github-token" placeholder="输入GitHub Personal Access Token" class="w-full text-xs px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary transition-all">
+                                <p class="text-[9px] text-gray-400 dark:text-gray-500 mt-1">
+                                    <a href="https://github.com/settings/tokens" target="_blank" class="text-primary hover:underline">获取Token</a> (需要repo权限)
+                                </p>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">GitHub 仓库</label>
+                                <input type="text" id="github-repo" placeholder="用户名/仓库名" class="w-full text-xs px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary transition-all">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">文件路径</label>
+                                <input type="text" id="github-file-path" placeholder="backup/todo.json" value="backup/todo.json" class="w-full text-xs px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary transition-all">
+                            </div>
+                            <div>
+                                <button id="github-auth" class="w-full text-xs px-3 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all">
+                                    <i class="fa fa-check"></i> 验证 Token
+                                </button>
+                            </div>
+                            <div id="github-auth-status" class="text-xs text-gray-500 dark:text-gray-400 hidden">
+                                未验证
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- WebDAV 备份配置 -->
+                    <div>
+                        <h4 class="text-sm font-semibold mb-3 flex items-center gap-2">
+                            <i class="fa fa-cloud-upload text-gray-600 dark:text-gray-300"></i>
+                            WebDAV 备份
+                        </h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">WebDAV 服务器 URL</label>
+                                <input type="url" id="webdav-url" placeholder="https://example.com/webdav" class="w-full text-xs px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary transition-all">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">用户名</label>
+                                <input type="text" id="webdav-username" placeholder="用户名" class="w-full text-xs px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary transition-all">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">密码</label>
+                                <input type="password" id="webdav-password" placeholder="密码" class="w-full text-xs px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary transition-all">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">文件路径</label>
+                                <input type="text" id="webdav-file-path" placeholder="backup/todo.json" value="backup/todo.json" class="w-full text-xs px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary transition-all">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 备份选项 -->
+                    <div>
+                        <h4 class="text-sm font-semibold mb-3">备份选项</h4>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-2 text-xs">
+                                <input type="checkbox" id="backup-incremental" class="custom-checkbox">
+                                <span>增量备份</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-xs">
+                                <input type="checkbox" id="backup-timestamp" class="custom-checkbox" checked>
+                                <span>添加时间戳</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end gap-3 mt-6">
+                    <button id="backup-cancel" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">取消</button>
+                    <button id="backup-save" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">保存配置</button>
+                    <button id="backup-now" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">立即备份</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
