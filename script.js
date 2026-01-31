@@ -9,6 +9,7 @@ class TodoApp {
         this.currentSort = 'created';
         this.sortOrder = 'desc';
         this.lastResetDate = getLastResetDate();
+        this.resetTimer = null;
         this.init();
     }
 
@@ -22,9 +23,16 @@ class TodoApp {
         this.updateSortButtons();
         
         // 添加定时器，每分钟检查一次每日任务重置
-        setInterval(() => {
+        this.resetTimer = setInterval(() => {
             this.checkDailyReset();
         }, 60000); // 60000ms = 1分钟
+    }
+
+    cleanup() {
+        if (this.resetTimer) {
+            clearInterval(this.resetTimer);
+            this.resetTimer = null;
+        }
     }
 
     checkDailyReset() {
@@ -582,6 +590,13 @@ class TodoApp {
         const container = document.getElementById('custom-categories');
         if (!container) return;
         
+        // 移除旧的事件监听器
+        const oldFilterBtns = container.querySelectorAll('.filter-btn');
+        oldFilterBtns.forEach(btn => {
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+        });
+        
         container.innerHTML = this.categories.map(category => `
             <div class="space-y-1">
                 <div class="sidebar-item filter-btn group" data-filter="category-${category.id}">
@@ -608,6 +623,12 @@ class TodoApp {
             </div>
         `).join('');
         
+        // 重新绑定事件监听器
+        this.bindCategoryEvents(container);
+    }
+
+    bindCategoryEvents(container) {
+        // 绑定过滤按钮事件
         container.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 if (e.target.closest('.delete-category') || e.target.closest('.edit-category') || e.target.closest('.category-edit')) return;
@@ -661,6 +682,7 @@ class TodoApp {
             });
         });
         
+        // 绑定编辑按钮事件
         container.querySelectorAll('.edit-category').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -675,6 +697,7 @@ class TodoApp {
             });
         });
         
+        // 绑定编辑输入框事件
         container.querySelectorAll('.category-edit').forEach(input => {
             input.addEventListener('blur', (e) => {
                 this.saveCategoryInline(input);
@@ -692,6 +715,7 @@ class TodoApp {
             });
         });
         
+        // 绑定删除按钮事件
         container.querySelectorAll('.delete-category').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
