@@ -20,6 +20,11 @@ class TodoApp {
         this.updateHeaderDate();
         this.loadTheme();
         this.updateSortButtons();
+        
+        // 添加定时器，每分钟检查一次每日任务重置
+        setInterval(() => {
+            this.checkDailyReset();
+        }, 60000); // 60000ms = 1分钟
     }
 
     checkDailyReset() {
@@ -41,7 +46,6 @@ class TodoApp {
         });
         if (resetCount > 0) {
             this.saveTasks();
-            this.showToast(`已重置 ${resetCount} 个每日任务`);
         }
     }
 
@@ -211,7 +215,8 @@ class TodoApp {
         document.getElementById('export-tasks').addEventListener('click', () => this.exportTasks());
         document.getElementById('import-tasks').addEventListener('click', () => document.getElementById('import-file').click());
         document.getElementById('import-file').addEventListener('change', (e) => this.importTasks(e));
-        document.getElementById('backup-tasks').addEventListener('click', () => this.showBackupDialog());
+        document.getElementById('backup-tasks').addEventListener('click', () => this.performBackup());
+        document.getElementById('settings-tasks').addEventListener('click', () => this.showBackupDialog());
         
         document.getElementById('confirm-cancel').addEventListener('click', () => this.hideConfirmDialog());
         document.getElementById('confirm-delete').addEventListener('click', () => this.confirmDeleteCategory());
@@ -235,20 +240,9 @@ class TodoApp {
                 this.hideBackupDialog();
             }
             
-            // 备份对话框立即备份按钮
-            if (e.target.closest('#backup-now')) {
-                this.saveBackupConfig();
-                this.performBackup();
-            }
-            
             // GitHub 授权按钮
             if (e.target.closest('#github-auth')) {
                 this.authorizeGitHub();
-            }
-            
-            // 备份对话框点击外部关闭
-            if (e.target.closest('#backup-dialog') && e.target === e.target.closest('#backup-dialog')) {
-                this.hideBackupDialog();
             }
         });
     }
@@ -1206,10 +1200,34 @@ class TodoApp {
             authStatus.textContent = '已验证';
             authStatus.className = 'text-xs text-green-500 dark:text-green-400';
             document.getElementById('github-auth').textContent = '重新验证';
+            
+            // 获取用户信息并显示用户名
+            fetch('https://api.github.com/user', {
+                headers: {
+                    'Authorization': `token ${githubToken}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            })
+            .then(response => response.json())
+            .then(user => {
+                const usernameElement = document.getElementById('github-username');
+                usernameElement.querySelector('span').textContent = user.login;
+                usernameElement.classList.remove('hidden');
+            })
+            .catch(error => {
+                console.error('获取用户信息错误:', error);
+            });
+            
+            // 自动加载仓库列表
+            this.loadGitHubRepos(githubToken, config.githubRepo);
         } else {
             authStatus.textContent = '未验证';
             authStatus.className = 'text-xs text-gray-500 dark:text-gray-400';
             document.getElementById('github-auth').innerHTML = '<i class="fa fa-check"></i> 验证 Token';
+            
+            // 隐藏用户名
+            const usernameElement = document.getElementById('github-username');
+            usernameElement.classList.add('hidden');
         }
         authStatus.classList.remove('hidden');
     }
@@ -1240,22 +1258,52 @@ class TodoApp {
         
         // 验证中
         
-        // 验证Token有效性
-        fetch('https://api.github.com/user', {
-            headers: {
-                'Authorization': `token ${token}`,
-                'Accept': 'application/vnd.github.v3+json'
+        // 验证Token有效性并获取用户信息和仓库列表
+        Promise.all([
+            fetch('https://api.github.com/user', {
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            }),
+            fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            })
+        ])
+        .then(([userResponse, reposResponse]) => {
+            if (!userResponse.ok || !reposResponse.ok) {
+                throw new Error('Token验证失败');
             }
+            return Promise.all([userResponse.json(), reposResponse.json()]);
         })
-        .then(response => {
-            if (response.ok) {
-                // Token有效
-                this.showToast('GitHub Token验证成功', 'success');
-                saveGitHubToken(token);
-                this.loadBackupConfig();
-            } else {
-                // Token无效
-                this.showToast('GitHub Token验证失败，请检查Token是否正确', 'error');
+        .then(([user, repos]) => {
+            // Token有效，获取到用户信息和仓库列表
+            this.showToast('GitHub Token验证成功', 'success');
+            saveGitHubToken(token);
+            
+            // 显示用户名
+            const usernameElement = document.getElementById('github-username');
+            usernameElement.querySelector('span').textContent = user.login;
+            usernameElement.classList.remove('hidden');
+            
+            // 填充仓库数据列表
+            const repoDatalist = document.getElementById('github-repo-list');
+            repoDatalist.innerHTML = '';
+            
+            repos.forEach(repo => {
+                const option = document.createElement('option');
+                option.value = `${repo.owner.login}/${repo.name}`;
+                option.textContent = repo.name;
+                repoDatalist.appendChild(option);
+            });
+            
+            // 恢复之前选择的仓库
+            const config = getBackupConfig();
+            if (config.githubRepo) {
+                document.getElementById('github-repo').value = config.githubRepo;
             }
         })
         .catch(error => {
@@ -1264,7 +1312,44 @@ class TodoApp {
         });
     }
 
+    loadGitHubRepos(token, selectedRepo) {
+        fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
+            headers: {
+                'Authorization': `token ${token}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                throw new Error('获取仓库列表失败');
+            }
+        })
+        .then(repos => {
+            // 填充仓库数据列表
+            const repoDatalist = document.getElementById('github-repo-list');
+            repoDatalist.innerHTML = '';
+            
+            repos.forEach(repo => {
+                const option = document.createElement('option');
+                option.value = `${repo.owner.login}/${repo.name}`;
+                option.textContent = repo.name;
+                repoDatalist.appendChild(option);
+            });
+            
+            // 恢复之前选择的仓库
+            if (selectedRepo) {
+                document.getElementById('github-repo').value = selectedRepo;
+            }
+        })
+        .catch(error => {
+            console.error('加载仓库列表错误:', error);
+        });
+    }
+
     performBackup() {
+        this.saveBackupConfig();
         // 执行 GitHub 备份
         this.backupToGitHub();
         
