@@ -218,7 +218,11 @@ class TodoApp {
             if (e.target.closest('.task-checkbox')) this.toggleStatus(id);
         });
 
-        document.getElementById('theme-toggle').addEventListener('click', () => this.toggleTheme());
+        const sidebarThemeToggle = document.getElementById('sidebar-theme-toggle');
+        if (sidebarThemeToggle) {
+            sidebarThemeToggle.addEventListener('click', () => this.toggleTheme());
+        }
+        
         document.getElementById('clear-completed').addEventListener('click', () => this.clearCompleted());
         document.getElementById('export-tasks').addEventListener('click', () => this.exportTasks());
         document.getElementById('import-tasks').addEventListener('click', () => document.getElementById('import-file').click());
@@ -1064,6 +1068,21 @@ class TodoApp {
         const isDark = document.documentElement.classList.contains('dark');
         saveTheme(isDark ? 'dark' : 'light');
         this.showToast(isDark ? '暗色模式已开启' : '亮色模式已开启');
+        
+        const sidebarThemeToggle = document.getElementById('sidebar-theme-toggle');
+        if (sidebarThemeToggle) {
+            const lightIcon = sidebarThemeToggle.querySelector('.theme-icon-light');
+            const darkIcon = sidebarThemeToggle.querySelector('.theme-icon-dark');
+            if (lightIcon && darkIcon) {
+                if (isDark) {
+                    lightIcon.classList.add('hidden');
+                    darkIcon.classList.remove('hidden');
+                } else {
+                    lightIcon.classList.remove('hidden');
+                    darkIcon.classList.add('hidden');
+                }
+            }
+        }
     }
 
     loadTheme() {
@@ -1241,9 +1260,6 @@ class TodoApp {
             .catch(error => {
                 console.error('获取用户信息错误:', error);
             });
-            
-            // 自动加载仓库列表
-            this.loadGitHubRepos(githubToken, config.githubRepo);
         } else {
             authStatus.textContent = '未验证';
             authStatus.className = 'text-xs text-gray-500 dark:text-gray-400';
@@ -1333,42 +1349,6 @@ class TodoApp {
         .catch(error => {
             this.showToast(`验证错误: ${error.message}`, 'error');
             console.error('Token验证详细错误:', error);
-        });
-    }
-
-    loadGitHubRepos(token, selectedRepo) {
-        fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
-            headers: {
-                'Authorization': `token ${token}`,
-                'Accept': 'application/vnd.github.v3+json'
-            }
-        })
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            } else {
-                throw new Error('获取仓库列表失败');
-            }
-        })
-        .then(repos => {
-            // 填充仓库数据列表
-            const repoDatalist = document.getElementById('github-repo-list');
-            repoDatalist.innerHTML = '';
-            
-            repos.forEach(repo => {
-                const option = document.createElement('option');
-                option.value = `${repo.owner.login}/${repo.name}`;
-                option.textContent = repo.name;
-                repoDatalist.appendChild(option);
-            });
-            
-            // 恢复之前选择的仓库
-            if (selectedRepo) {
-                document.getElementById('github-repo').value = selectedRepo;
-            }
-        })
-        .catch(error => {
-            console.error('加载仓库列表错误:', error);
         });
     }
 
