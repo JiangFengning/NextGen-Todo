@@ -797,6 +797,9 @@ class TodoApp {
         const empty = document.getElementById('empty-state');
         const search = document.getElementById('search-input').value.toLowerCase();
 
+        // 记录当前滚动位置
+        const scrollPos = window.scrollY || document.documentElement.scrollTop;
+
         let filtered = this.tasks.filter(t => {
             const matchesSearch = t.text.toLowerCase().includes(search) || 
                                  t.tags.some(tag => tag.toLowerCase().includes(search));
@@ -933,6 +936,12 @@ class TodoApp {
                 }, index * 30);
             });
         }
+        
+        // 恢复滚动位置
+        requestAnimationFrame(() => {
+            window.scrollTo(0, scrollPos);
+        });
+        
         this.updateProgress();
     }
     
