@@ -6,6 +6,11 @@
     <title>NextGen Todo - 下一个做什么</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none'%3E%3Crect width='32' height='32' rx='8' fill='%233b82f6'/%3E%3Cpath d='M9 16L13 20L23 10' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" type="image/svg+xml">
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180' fill='none'%3E%3Crect width='180' height='180' rx='40' fill='%233b82f6'/%3E%3Cpath d='M50 90L75 110L130 60' stroke='white' stroke-width='14' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" type="image/svg+xml">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="NextGen Todo">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <script>
@@ -588,6 +593,30 @@
                 min-height: 44px !important;
                 display: flex !important;
                 align-items: center !important;
+            }
+
+            /* 超小屏幕更新通知优化 */
+            #update-notification {
+                left: 1rem;
+                right: 1rem;
+                bottom: 1rem;
+            }
+
+            #update-notification > div {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 1rem;
+            }
+
+            #update-notification .flex.items-center.gap-3 {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            #update-notification button {
+                width: 100%;
+                justify-content: center;
             }
         }
 
@@ -1544,5 +1573,76 @@
             </div>
         </div>
     </div>
+
+    <div id="update-notification" class="fixed bottom-6 left-6 right-6 z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between gap-4 animate-slide-in">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                    <i class="fa fa-refresh text-primary"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-gray-800 dark:text-gray-200">发现新版本</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">点击刷新以获取最新功能</p>
+                </div>
+            </div>
+            <button id="refresh-app" class="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2">
+                <i class="fa fa-refresh"></i>
+                <span>刷新</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js', { scope: './' })
+                    .then(registration => {
+                        console.log('[App] Service Worker 注册成功:', registration.scope);
+
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            console.log('[App] 发现新的 Service Worker');
+
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('[App] 新的 Service Worker 已就绪，显示更新提示');
+                                    showUpdateNotification(registration);
+                                }
+                            });
+                        });
+
+                        return registration.update();
+                    })
+                    .catch(error => {
+                        console.error('[App] Service Worker 注册失败:', error);
+                    });
+            });
+
+            function showUpdateNotification(registration) {
+                const notification = document.getElementById('update-notification');
+                const refreshBtn = document.getElementById('refresh-app');
+
+                if (notification) {
+                    notification.classList.remove('hidden');
+                }
+
+                if (refreshBtn) {
+                    refreshBtn.addEventListener('click', () => {
+                        if (registration.waiting) {
+                            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                        }
+                        window.location.reload();
+                    });
+                }
+            }
+
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                console.log('[App] Service Worker 控制器已切换');
+                window.location.reload();
+            });
+        } else {
+            console.warn('[App] 当前浏览器不支持 Service Worker');
+        }
+    </script>
 </body>
 </html>
